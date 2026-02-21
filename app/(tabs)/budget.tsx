@@ -35,6 +35,27 @@ export default function BudgetScreen() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [editingCosts, setEditingCosts] = useState<string | null>(null);
 
+  // Calculate budget summary — must be before any conditional returns (React Rules of Hooks)
+  const summary: BudgetSummary = useMemo(() => {
+    if (!currentOrder) {
+      return { totalSale: 0, totalRealCost: 0, margin: 0, marginPercentage: 0 };
+    }
+    const totalSale = currentOrder.tasks.reduce(
+      (sum, t) => sum + t.saleCost + t.laborSaleCost,
+      0
+    );
+    const totalRealCost = currentOrder.tasks.reduce(
+      (sum, t) => sum + t.realCost + t.laborRealCost,
+      0
+    );
+    return {
+      totalSale,
+      totalRealCost,
+      margin: totalSale - totalRealCost,
+      marginPercentage: calculateMargin(totalSale, totalRealCost),
+    };
+  }, [currentOrder]);
+
   // If no order selected, show order picker
   if (!currentOrder) {
     return (
@@ -97,24 +118,6 @@ export default function BudgetScreen() {
       </View>
     );
   }
-
-  // Calculate budget summary
-  const summary: BudgetSummary = useMemo(() => {
-    const totalSale = currentOrder.tasks.reduce(
-      (sum, t) => sum + t.saleCost + t.laborSaleCost,
-      0
-    );
-    const totalRealCost = currentOrder.tasks.reduce(
-      (sum, t) => sum + t.realCost + t.laborRealCost,
-      0
-    );
-    return {
-      totalSale,
-      totalRealCost,
-      margin: totalSale - totalRealCost,
-      marginPercentage: calculateMargin(totalSale, totalRealCost),
-    };
-  }, [currentOrder.tasks]);
 
   const handleUpdateTaskCosts = async (task: WorkTask) => {
     const updatedTasks = currentOrder.tasks.map((t) =>
