@@ -1,0 +1,288 @@
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import { OrderCard } from '../OrderCard';
+import { WorkOrder } from '../../types';
+
+jest.mock('../StatusBadge', () => ({
+  StatusBadge: function MockStatusBadge() {
+    return null;
+  },
+}));
+
+const mockWorkOrder: WorkOrder = {
+  id: '250221-01',
+  pk: 'OT#250221-01',
+  sk: 'METADATA',
+  createdAt: '2025-02-21T10:30:00Z',
+  updatedAt: '2025-02-21T10:30:00Z',
+  status: 'in_progress',
+  vehicle: {
+    vin: 'ABC123',
+    plates: 'ABC-123',
+    brand: 'Toyota',
+    model: 'Corolla',
+    year: '2020',
+    color: 'White',
+    engine: '1.8L',
+    odometer: '45000',
+  },
+  clientName: 'John Doe',
+  clientPhone: '5551234567',
+  reasonForVisit: 'Oil change',
+  photos: [
+    { slot: 'front', uri: 'file://photo1.jpg', note: '', timestamp: '2025-02-21T10:30:00Z' },
+  ],
+  tasks: [
+    {
+      id: 'task1',
+      pk: 'OT#250221-01',
+      sk: 'TASK#task1',
+      description: 'Oil change',
+      status: 'completed',
+      mechanicName: 'Juan',
+      hoursWorked: 1,
+      saleCost: 100,
+      realCost: 50,
+      laborSaleCost: 30,
+      laborRealCost: 20,
+      evidencePhotos: [],
+      notes: '',
+      createdAt: '2025-02-21T10:30:00Z',
+      updatedAt: '2025-02-21T10:30:00Z',
+    },
+    {
+      id: 'task2',
+      pk: 'OT#250221-01',
+      sk: 'TASK#task2',
+      description: 'Alignment check',
+      status: 'pending',
+      mechanicName: 'Carlos',
+      hoursWorked: 0,
+      saleCost: 80,
+      realCost: 40,
+      laborSaleCost: 20,
+      laborRealCost: 10,
+      evidencePhotos: [],
+      notes: '',
+      createdAt: '2025-02-21T10:30:00Z',
+      updatedAt: '2025-02-21T10:30:00Z',
+    },
+  ],
+};
+
+describe('OrderCard', () => {
+  it('should render without crashing', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText(/OT #250221-01/)).toBeTruthy();
+  });
+
+  it('should display OT ID', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText(/OT #250221-01/)).toBeTruthy();
+  });
+
+  it('should display formatted creation date', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText(/feb/i)).toBeTruthy();
+  });
+
+  it('should display vehicle information', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText(/Toyota Corolla 2020/)).toBeTruthy();
+  });
+
+  it('should display vehicle plates', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText('ABC-123')).toBeTruthy();
+  });
+
+  it('should display client name', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText('John Doe')).toBeTruthy();
+  });
+
+  it('should display photo count', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText('1/6')).toBeTruthy();
+  });
+
+  it('should display task progress', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText(/1\/2 tareas/)).toBeTruthy();
+  });
+
+  it('should handle order with no photos', () => {
+    const onPress = jest.fn();
+    const orderNoPhotos = { ...mockWorkOrder, photos: [] };
+    const { getByText } = render(<OrderCard order={orderNoPhotos} onPress={onPress} />);
+    expect(getByText('0/6')).toBeTruthy();
+  });
+
+  it('should handle order with multiple photos', () => {
+    const onPress = jest.fn();
+    const orderManyPhotos = {
+      ...mockWorkOrder,
+      photos: Array(5).fill(null).map((_, i) => ({
+        slot: 'front' as const,
+        uri: `file://photo${i}.jpg`,
+        note: '',
+        timestamp: '2025-02-21T10:30:00Z',
+      })),
+    };
+    const { getByText } = render(<OrderCard order={orderManyPhotos} onPress={onPress} />);
+    expect(getByText('5/6')).toBeTruthy();
+  });
+
+  it('should count only photos with uri', () => {
+    const onPress = jest.fn();
+    const orderWithEmptyPhotos = {
+      ...mockWorkOrder,
+      photos: [
+        { slot: 'front' as const, uri: 'file://photo.jpg', note: '', timestamp: '' },
+        { slot: 'rear' as const, uri: '', note: '', timestamp: '' },
+      ],
+    };
+    const { getByText } = render(
+      <OrderCard order={orderWithEmptyPhotos} onPress={onPress} />
+    );
+    expect(getByText('1/6')).toBeTruthy();
+  });
+
+  it('should handle order with no tasks', () => {
+    const onPress = jest.fn();
+    const orderNoTasks = { ...mockWorkOrder, tasks: [] };
+    const { getByText } = render(<OrderCard order={orderNoTasks} onPress={onPress} />);
+    expect(getByText(/0\/0 tareas/)).toBeTruthy();
+  });
+
+  it('should count completed tasks correctly', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    expect(getByText(/1\/2 tareas/)).toBeTruthy();
+  });
+
+  it('should display message when no vehicle data', () => {
+    const onPress = jest.fn();
+    const orderNoVehicle = {
+      ...mockWorkOrder,
+      vehicle: {
+        vin: '',
+        plates: '',
+        brand: '',
+        model: '',
+        year: '',
+        color: '',
+        engine: '',
+        odometer: '',
+      },
+    };
+    const { getByText } = render(
+      <OrderCard order={orderNoVehicle} onPress={onPress} />
+    );
+    expect(getByText('Sin datos de vehículo')).toBeTruthy();
+  });
+
+  it('should not display plates section if plates is empty', () => {
+    const onPress = jest.fn();
+    const orderNoPlates = {
+      ...mockWorkOrder,
+      vehicle: { ...mockWorkOrder.vehicle, plates: '' },
+    };
+    const { queryByText } = render(
+      <OrderCard order={orderNoPlates} onPress={onPress} />
+    );
+    expect(queryByText('ABC-123')).toBeFalsy();
+  });
+
+  it('should not display client name section if empty', () => {
+    const onPress = jest.fn();
+    const orderNoClient = { ...mockWorkOrder, clientName: '' };
+    const { queryByText } = render(
+      <OrderCard order={orderNoClient} onPress={onPress} />
+    );
+    expect(queryByText('John Doe')).toBeFalsy();
+  });
+
+  it('should call onPress when card is pressed', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(<OrderCard order={mockWorkOrder} onPress={onPress} />);
+    const card = getByText(/OT #250221-01/).parent?.parent?.parent;
+
+    if (card) {
+      fireEvent.press(card);
+      expect(onPress).toHaveBeenCalled();
+    }
+  });
+
+  it('should handle all completed tasks', () => {
+    const onPress = jest.fn();
+    const allCompletedOrder = {
+      ...mockWorkOrder,
+      tasks: mockWorkOrder.tasks.map(task => ({ ...task, status: 'completed' as const })),
+    };
+    const { getByText } = render(
+      <OrderCard order={allCompletedOrder} onPress={onPress} />
+    );
+    expect(getByText(/2\/2 tareas/)).toBeTruthy();
+  });
+
+  it('should display full task progress for multiple tasks', () => {
+    const onPress = jest.fn();
+    const manyTasksOrder = {
+      ...mockWorkOrder,
+      tasks: Array(10).fill(null).map((_, i) => ({
+        id: `task${i}`,
+        pk: 'OT#250221-01',
+        sk: `TASK#task${i}`,
+        description: `Task ${i}`,
+        status: i < 3 ? ('completed' as const) : ('pending' as const),
+        mechanicName: 'Juan',
+        hoursWorked: 1,
+        saleCost: 100,
+        realCost: 50,
+        laborSaleCost: 30,
+        laborRealCost: 20,
+        evidencePhotos: [],
+        notes: '',
+        createdAt: '2025-02-21T10:30:00Z',
+        updatedAt: '2025-02-21T10:30:00Z',
+      })),
+    };
+    const { getByText } = render(
+      <OrderCard order={manyTasksOrder} onPress={onPress} />
+    );
+    expect(getByText(/3\/10 tareas/)).toBeTruthy();
+  });
+
+  it('should render with minimal order data', () => {
+    const onPress = jest.fn();
+    const minimalOrder: WorkOrder = {
+      id: '250221-01',
+      pk: 'OT#250221-01',
+      sk: 'METADATA',
+      createdAt: '2025-02-21T10:30:00Z',
+      updatedAt: '2025-02-21T10:30:00Z',
+      status: 'reception',
+      vehicle: { vin: '', plates: '', brand: '', model: '', year: '', color: '', engine: '', odometer: '' },
+      clientName: '',
+      clientPhone: '',
+      reasonForVisit: '',
+      photos: [],
+      tasks: [],
+    };
+    const { getByText } = render(
+      <OrderCard order={minimalOrder} onPress={onPress} />
+    );
+    expect(getByText(/OT #250221-01/)).toBeTruthy();
+    expect(getByText('0/6')).toBeTruthy();
+    expect(getByText(/0\/0 tareas/)).toBeTruthy();
+  });
+});

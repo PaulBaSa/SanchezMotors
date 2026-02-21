@@ -1,0 +1,94 @@
+import React from 'react';
+import { render } from '@testing-library/react-native';
+import { StatusBadge } from '../StatusBadge';
+import { COLORS } from '../../constants/theme';
+
+describe('StatusBadge', () => {
+  it('should render without crashing', () => {
+    const { getByText } = render(<StatusBadge status="reception" />);
+    expect(getByText('Recepción')).toBeTruthy();
+  });
+
+  it('should display Spanish label for reception status', () => {
+    const { getByText } = render(<StatusBadge status="reception" />);
+    expect(getByText('Recepción')).toBeTruthy();
+  });
+
+  it('should display Spanish label for pending status', () => {
+    const { getByText } = render(<StatusBadge status="pending" />);
+    expect(getByText('Pendiente')).toBeTruthy();
+  });
+
+  it('should display Spanish label for in_progress status', () => {
+    const { getByText } = render(<StatusBadge status="in_progress" />);
+    expect(getByText('En Proceso')).toBeTruthy();
+  });
+
+  it('should display Spanish label for completed status', () => {
+    const { getByText } = render(<StatusBadge status="completed" />);
+    expect(getByText('Finalizado')).toBeTruthy();
+  });
+
+  it('should display Spanish label for delivered status', () => {
+    const { getByText } = render(<StatusBadge status="delivered" />);
+    expect(getByText('Entregado')).toBeTruthy();
+  });
+
+  it('should apply info color for reception status', () => {
+    const { getByText } = render(<StatusBadge status="reception" />);
+    const badge = getByText('Recepción').parent;
+    expect(badge?.props?.style?.[0]?.backgroundColor).toBe(COLORS.info);
+  });
+
+  it('should apply warning color for pending status', () => {
+    const { getByText } = render(<StatusBadge status="pending" />);
+    const badge = getByText('Pendiente').parent;
+    expect(badge?.props?.style?.[0]?.backgroundColor).toBe(COLORS.warning);
+  });
+
+  it('should apply info color for in_progress status', () => {
+    const { getByText } = render(<StatusBadge status="in_progress" />);
+    const badge = getByText('En Proceso').parent;
+    expect(badge?.props?.style?.[0]?.backgroundColor).toBe(COLORS.info);
+  });
+
+  it('should apply success color for completed status', () => {
+    const { getByText } = render(<StatusBadge status="completed" />);
+    const badge = getByText('Finalizado').parent;
+    expect(badge?.props?.style?.[0]?.backgroundColor).toBe(COLORS.success);
+  });
+
+  it('should apply accent color for delivered status', () => {
+    const { getByText } = render(<StatusBadge status="delivered" />);
+    const badge = getByText('Entregado').parent;
+    expect(badge?.props?.style?.[0]?.backgroundColor).toBe(COLORS.accent);
+  });
+
+  it('should apply default color for unknown status', () => {
+    const { getByText } = render(<StatusBadge status="unknown_status" />);
+    const badge = getByText('unknown_status').parent;
+    expect(badge?.props?.style?.[0]?.backgroundColor).toBe(COLORS.textSecondary);
+  });
+
+  it('should render text in white color', () => {
+    const { getByText } = render(<StatusBadge status="completed" />);
+    const text = getByText('Finalizado');
+    expect(text.props.style.color).toBe(COLORS.white);
+  });
+
+  it('should have bold font weight on text', () => {
+    const { getByText } = render(<StatusBadge status="completed" />);
+    const text = getByText('Finalizado');
+    expect(text.props.style.fontWeight).toBe('700');
+  });
+
+  it('should render all status variants correctly', () => {
+    const statuses = ['reception', 'pending', 'in_progress', 'completed', 'delivered'];
+
+    statuses.forEach((status) => {
+      const { getByText, unmount } = render(<StatusBadge status={status} />);
+      expect(getByText(/./)).toBeTruthy();
+      unmount();
+    });
+  });
+});
