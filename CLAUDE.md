@@ -15,7 +15,7 @@
 | Language | TypeScript (strict mode) |
 | Routing | expo-router ^6.0.23 (file-based) |
 | State | React Context API (`AppContext`) |
-| Persistence | AsyncStorage (offline-first) |
+| Persistence | AsyncStorage ^2.2.0 (offline-first) |
 | Camera/Media | expo-camera, expo-image-picker, expo-media-library |
 | File System | expo-file-system |
 | Export | expo-print (PDF), expo-sharing |
@@ -24,6 +24,7 @@
 | Navigation infra | react-native-screens, react-native-safe-area-context |
 | Icons | @expo/vector-icons ^15 (Ionicons) |
 | Unique IDs | uuid ^9.0.0 |
+| Build config | expo-build-properties ^1.0.10 |
 | Testing | Jest ^30 + ts-jest + @testing-library/react-native |
 
 ---
@@ -42,12 +43,12 @@ SanchezMotors/
 │
 ├── src/
 │   ├── components/                 # Reusable UI components
-│   │   ├── ActionButton.tsx
-│   │   ├── FormField.tsx
-│   │   ├── OrderCard.tsx
+│   │   ├── ActionButton.tsx        # Variants: primary, secondary, danger, success
+│   │   ├── FormField.tsx           # Labeled TextInput with optional required marker
+│   │   ├── OrderCard.tsx           # Order list card with status, vehicle, task stats
 │   │   ├── PhotoGrid.tsx           # 6-slot mandatory inspection photos
-│   │   ├── PinModal.tsx            # Admin PIN entry
-│   │   ├── StatusBadge.tsx
+│   │   ├── PinModal.tsx            # Admin PIN entry (4–6 digit, numeric, secure)
+│   │   ├── StatusBadge.tsx         # Colored pill badge for order/task status
 │   │   └── __tests__/
 │   │       ├── OrderCard.test.tsx.skip    # Skipped — requires JSDOM env
 │   │       └── StatusBadge.test.tsx.skip  # Skipped — requires JSDOM env
@@ -61,7 +62,7 @@ SanchezMotors/
 │   │       ├── authStorage.test.ts
 │   │       └── orderStorage.test.ts
 │   ├── types/
-│   │   └── index.ts                # WorkOrder, WorkTask, BudgetSummary, etc.
+│   │   └── index.ts                # WorkOrder, WorkTask, BudgetSummary, PHOTO_SLOT_LABELS, etc.
 │   └── utils/
 │       ├── formatters.ts           # Currency, dates, margin calculations
 │       ├── otGenerator.ts          # OT ID format: YYMMDD-##
@@ -73,13 +74,13 @@ SanchezMotors/
 ├── .github/
 │   └── workflows/
 │       ├── test.yml                # CI: typecheck + tests on every push/PR
-│       └── build-android.yml       # CI: APK + AAB on main/release/tags
-├── app.json                        # Expo app manifest
+│       └── build-android.yml       # CI: APK + AAB on main/release/tags (+ manual dispatch)
+├── app.json                        # Expo app manifest (scheme: "workshop-manager")
 ├── babel.config.js                 # Babel: babel-preset-expo + reanimated plugin
 ├── eas.json                        # EAS build profiles (preview / production)
 ├── index.ts                        # App entry point
 ├── jest.config.js                  # Jest config (ts-jest, node env, coverage thresholds)
-├── jest.setup.js                   # Jest mocks (AsyncStorage, expo-router, Ionicons)
+├── jest.setup.js                   # Jest mocks (AsyncStorage, expo-router, Ionicons, console.error)
 ├── metro.config.js                 # Metro bundler config
 ├── package.json
 ├── package-lock.json
@@ -151,21 +152,25 @@ The CI enforces 50% minimum coverage across branches, functions, lines, and stat
 
 ### Test Setup Mocks (`jest.setup.js`)
 
-- `@react-native-async-storage/async-storage` — all methods mocked with `jest.fn()`
+- `@react-native-async-storage/async-storage` — all methods mocked with `jest.fn()` (setItem, getItem, removeItem, getAllKeys, clear, multiSet, multiGet)
 - `expo-router` — `useRouter`, `useLocalSearchParams`, `usePathname` mocked
 - `@expo/vector-icons` — `Ionicons` returns `null`
+- `console.error` — suppressed for ReactDOM.render and Non-serializable values warnings during tests
 
 ### CI Pipeline
 
-**`test.yml`** — runs on every push and pull request to any branch:
+**`test.yml`** — runs on every push and pull request to any branch (Node 22):
 1. TypeScript type check (`npm run typecheck`)
 2. Test suite (`npm test -- --ci --forceExit`)
 3. Uploads coverage report as artifact (7-day retention)
 
-**`build-android.yml`** — runs on `main`, `release/**` branches and `v*` tags:
-1. Generates native Android project (`expo prebuild`)
-2. Builds release APK → uploads as artifact (30-day retention)
-3. Builds release AAB → uploads as artifact (30-day retention)
+**`build-android.yml`** — runs on `main`, `release/**` branches, `v*` tags, and manual `workflow_dispatch` (Node 22, Java 17):
+1. Sets up Android SDK
+2. Generates native Android project (`expo prebuild`)
+3. Caches Gradle dependencies
+4. Builds release APK → uploads as artifact (30-day retention)
+5. Builds release AAB → uploads as artifact (30-day retention)
+6. Prints build summary to GitHub Step Summary
 
 ---
 
@@ -205,6 +210,14 @@ Order IDs are generated as `YYMMDD-##` (date prefix + daily sequence counter). T
 ### Exports and Backup
 `orderStorage.ts` exposes `exportDailyData()` which returns a pretty-printed JSON string of all orders created today, suitable for USB/OTG backup.
 
+### Android Target Configuration
+Configured via `expo-build-properties` plugin in `app.json`:
+- `compileSdkVersion`: 35
+- `targetSdkVersion`: 35
+- `minSdkVersion`: 24
+- `kotlinVersion`: 2.0.21
+- `ndkVersion`: 27.0.12077973
+
 ---
 
 ## Data Model
@@ -220,6 +233,14 @@ type ImageType = 'entry' | 'process';
 type PhotoSlot = 'front' | 'rear' | 'left' | 'right' | 'interior_front' | 'interior_rear';
 ```
 
+### Constants
+```typescript
+PHOTO_SLOT_LABELS: Record<PhotoSlot, string>
+// Maps slot keys to Spanish labels:
+// front → 'Frontal', rear → 'Trasera', left → 'Lateral Izquierdo',
+// right → 'Lateral Derecho', interior_front → 'Interior Frontal', interior_rear → 'Interior Trasero'
+```
+
 ### Core Interfaces
 - **`WorkOrder`** — top-level order: vehicle info (`VehicleInfo`), client, status, `InspectionPhoto[]`, `WorkTask[]`
 - **`WorkTask`** — repair/maintenance item: Kanban status, hours, dual pricing, `TaskPhoto[]`, notes
@@ -230,6 +251,47 @@ type PhotoSlot = 'front' | 'rear' | 'left' | 'right' | 'interior_front' | 'inter
 - **`BudgetLineItem`** — per-task line item for the budget tab
 - **`AuthState`** — `{ isAuthenticated, role, pin }`
 - **`VehicleInfo`** — vin, plates, brand, model, year, color, engine, odometer (all strings)
+
+---
+
+## Storage API Reference
+
+### `orderStorage.ts`
+
+| Function | Description |
+|---|---|
+| `getAllOrders()` | Returns all `WorkOrder[]` from AsyncStorage |
+| `getOrderById(id)` | Finds a single order by ID |
+| `saveOrder(order)` | Upserts a `WorkOrder` (updates `updatedAt` on update) |
+| `deleteOrder(id)` | Removes an order by ID |
+| `createEmptyOrder(otId)` | Factory — returns a blank `WorkOrder` with DynamoDB keys set |
+| `createEmptyTask(orderId)` | Factory — returns a blank `WorkTask` with a new UUID and DynamoDB keys set |
+| `exportDailyData()` | Returns pretty-printed JSON of today's orders for USB/OTG backup |
+
+### `authStorage.ts`
+
+| Function | Description |
+|---|---|
+| `getAuthState()` | Returns current `AuthState` from AsyncStorage (defaults to unauthenticated mechanic) |
+| `loginAsAdmin(pin)` | Validates PIN against stored PIN; persists admin session; returns `boolean` |
+| `loginAsMechanic()` | Persists mechanic session (no PIN required) |
+| `logout()` | Removes auth state from AsyncStorage |
+| `getAdminPin()` | Returns stored PIN or default `"1234"` |
+| `setAdminPin(pin)` | Persists a new admin PIN |
+| `isAdmin()` | Convenience function; returns `true` if current role is `'admin'` |
+
+---
+
+## Utility Functions (`src/utils/formatters.ts`)
+
+| Function | Description |
+|---|---|
+| `formatCurrency(amount)` | Formats number as `$1,234.56` |
+| `formatDate(isoString)` | Formats ISO date in Spanish (es-MX locale), e.g. `"22 feb. 2026"` |
+| `formatDateTime(isoString)` | Formats ISO datetime in Spanish with time, e.g. `"22 feb. 2026, 10:30 a. m."` |
+| `formatHours(hours)` | Converts decimal hours to `"2h 30m"` format |
+| `calculateMargin(sale, cost)` | Returns `(sale - cost) / sale * 100`; returns `0` if sale is `0` |
+| `getStatusLabel(status)` | Maps status keys to Spanish labels (Recepción, En Proceso, Finalizado, Entregado, Pendiente) |
 
 ---
 
@@ -247,7 +309,7 @@ TOUCH_TARGET  // minHeight/minWidth: 60, iconSize: 28, iconSizeLg: 36
 
 ## Global State (`AppContext`)
 
-Exposed via `useApp()` hook. Must be used inside `<AppProvider>`.
+Exposed via `useApp()` hook. Must be used inside `<AppProvider>` (provided in `app/_layout.tsx`).
 
 ```typescript
 // Orders
@@ -261,7 +323,7 @@ updateTask(orderId, task)     // upserts task in order, then saves
 
 // Auth
 role: UserRole
-isAdmin: boolean
+isAdmin: boolean              // computed: role === 'admin'
 login(role, pin?): Promise<boolean>
 logout(): Promise<void>
 ```
@@ -285,12 +347,33 @@ logout(): Promise<void>
 - **Language**: All UI text, labels, and messages are in Spanish
 - **Styling**: React Native `StyleSheet` only — no external CSS libraries
 - **Components**: Functional components + React hooks; composition over inheritance
-- **Photos**: Compressed at 0.7 quality; stored as local URIs
+- **Photos**: Compressed at 0.7 quality; stored as local URIs; picker shows Alert with Camera / Galería options
 - **Time tracking**: Stored as decimal hours (e.g., `2.5` = 2h 30m); displayed via `formatHours()`
 - **Kanban columns**: `pending` (yellow) → `in_progress` (blue) → `completed` (green)
 - **WhatsApp integration**: Mexico prefix (`52`) hardcoded; validates phone before deep-link
 - **Path alias**: `@/*` maps to the repo root (configured in `tsconfig.json`)
 - **Admin UI markers**: Admin-only sections use a red shield icon and "Solo Admin" dividers
+
+---
+
+## App Manifest Notes (`app.json`)
+
+- **Scheme**: `"workshop-manager"` (deep-link URL scheme)
+- **New Architecture**: `newArchEnabled: true` — required by react-native-reanimated v4; do not disable
+- **Android permissions**: CAMERA, storage, RECORD_AUDIO, READ_MEDIA_IMAGES, READ_MEDIA_VIDEO, READ_MEDIA_AUDIO, READ_MEDIA_VISUAL_USER_SELECTED
+- **iOS**: Camera, photo library, and microphone usage descriptions provided (in Spanish)
+- **Package ID**: `com.anonymous.workshopmanager`
+
+---
+
+## EAS Build Config (`eas.json`)
+
+| Profile | Output | Distribution |
+|---|---|---|
+| `preview` | APK | Internal |
+| `production` | AAB (App Bundle) | — |
+
+CLI version requirement: `>= 15.0.0`. `appVersionSource: "remote"`.
 
 ---
 
@@ -315,3 +398,4 @@ logout(): Promise<void>
 - Admin-only UI sections are marked with a red shield icon and "Solo Admin" dividers
 - The default admin PIN is `"1234"` — never hardcode a different value as default; use `getAdminPin()` from `authStorage.ts`
 - Component tests in `__tests__/*.skip` files are intentionally skipped; do not rename them to `.tsx` without also updating the Jest environment
+- `createEmptyOrder(otId)` and `createEmptyTask(orderId)` are the canonical factory functions for new records — use them to ensure pk/sk fields are set correctly
