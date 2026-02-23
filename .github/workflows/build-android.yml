@@ -1,4 +1,4 @@
-name: Build Android (APK + AAB)
+name: Build Android (Debug + Release APK)
 
 on:
   push:
@@ -18,7 +18,7 @@ env:
 
 jobs:
   build-android:
-    name: Build APK & AAB
+    name: Build Debug & Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -66,30 +66,45 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon --warning-mode=all
 
       # ===========================
-      # Build Release AAB
+      # Build Debug APK
       # ===========================
-      - name: Build Release AAB
+      - name: Build Debug APK
         working-directory: android
-        run: ./gradlew bundleRelease --no-daemon --warning-mode=all
+        run: ./gradlew assembleDebug --no-daemon --warning-mode=all
+
+      # ===========================
+      # Build Release AAB (DISABLED)
+      # ===========================
+      # - name: Build Release AAB
+      #   working-directory: android
+      #   run: ./gradlew bundleRelease --no-daemon --warning-mode=all
 
       # ===========================
       # Upload artifacts
       # ===========================
-      - name: Upload APK artifact
+      - name: Upload Release APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: workshop-manager-apk
+          name: workshop-manager-release-apk
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 30
           if-no-files-found: error
 
-      - name: Upload AAB artifact
+      - name: Upload Debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: workshop-manager-aab
-          path: android/app/build/outputs/bundle/release/*.aab
+          name: workshop-manager-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
           if-no-files-found: error
+
+      # - name: Upload AAB artifact (DISABLED)
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: workshop-manager-aab
+      #     path: android/app/build/outputs/bundle/release/*.aab
+      #     retention-days: 30
+      #     if-no-files-found: error
 
       - name: Build summary
         run: |
@@ -97,9 +112,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Artifact | Path |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|------|" >> $GITHUB_STEP_SUMMARY
-          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
-          AAB=$(find android/app/build/outputs/bundle/release -name '*.aab' | head -1)
-          APK_SIZE=$(du -h "$APK" | cut -f1)
-          AAB_SIZE=$(du -h "$AAB" | cut -f1)
-          echo "| APK ($APK_SIZE) | \`$APK\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| AAB ($AAB_SIZE) | \`$AAB\` |" >> $GITHUB_STEP_SUMMARY
+          RELEASE_APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          DEBUG_APK=$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)
+          RELEASE_APK_SIZE=$(du -h "$RELEASE_APK" | cut -f1)
+          DEBUG_APK_SIZE=$(du -h "$DEBUG_APK" | cut -f1)
+          echo "| Release APK ($RELEASE_APK_SIZE) | \`$RELEASE_APK\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Debug APK ($DEBUG_APK_SIZE) | \`$DEBUG_APK\` |" >> $GITHUB_STEP_SUMMARY
