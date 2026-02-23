@@ -36,7 +36,7 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
       ],
-      "package": "com.anonymous.workshopmanager"
+      "package": "com.tuinsomnia.workshopmanager"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -53,9 +53,15 @@
             "newArchEnabled": true,
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
             "minSdkVersion": 24,
             "kotlinVersion": "2.0.21",
-            "ndkVersion": "27.0.12077973"
+            "ndkVersion": "27.0.12077973",
+            "sourceCompatibility": "VERSION_21",
+            "targetCompatibility": "VERSION_21",
+            "extraGradleProperties": {
+              "kotlin.compose.compiler.suppressKotlinVersionCompatibilityCheck": "true"
+            }
           }
         }
       ],

@@ -25,7 +25,7 @@ import { useApp } from '../../src/storage/AppContext';
 import { createEmptyTask } from '../../src/storage/orderStorage';
 import { WorkOrder, WorkTask, TaskStatus, TaskPhoto } from '../../src/types';
 import { formatHours } from '../../src/utils/formatters';
-import { v4 as uuidv4 } from 'uuid';
+import { generateUUID } from '../../src/utils/uuid';
 
 type KanbanColumn = TaskStatus;
 
@@ -289,7 +289,7 @@ function TaskEditor({
 
     if (!result.canceled && result.assets[0]) {
       const photo: TaskPhoto = {
-        id: uuidv4(),
+        id: generateUUID(),
         uri: result.assets[0].uri,
         note: '',
         timestamp: new Date().toISOString(),

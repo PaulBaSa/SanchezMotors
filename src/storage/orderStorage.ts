@@ -6,7 +6,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorkOrder, WorkTask } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import { generateUUID } from '../utils/uuid';
 
 const ORDERS_KEY = 'workshop_orders';
 
@@ -72,7 +72,7 @@ export function createEmptyOrder(otId: string): WorkOrder {
 }
 
 export function createEmptyTask(orderId: string): WorkTask {
-  const taskId = uuidv4();
+  const taskId = generateUUID();
   const now = new Date().toISOString();
   return {
     id: taskId,

@@ -123,7 +123,11 @@ export default function ReceptionScreen() {
               <Text style={styles.otLabel}>Orden de Trabajo</Text>
               <Text style={styles.otId}>#{editOrder.id}</Text>
             </View>
-            <ActionButton title="Cancelar" onPress={handleCancel} variant="secondary" />
+            <ActionButton
+              title={currentOrder ? "Ir atrás" : "Cancelar"}
+              onPress={handleCancel}
+              variant="secondary"
+            />
           </View>
 
           {/* Client Info */}
