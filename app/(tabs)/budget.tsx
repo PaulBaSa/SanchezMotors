@@ -62,6 +62,36 @@ export default function BudgetScreen() {
     };
   }, [currentOrder]);
 
+  // Handlers must be before any conditional returns (React Rules of Hooks)
+  const handleUpdateTaskCosts = useCallback(async (task: WorkTask) => {
+    if (!currentOrder) return;
+    const updatedTasks = currentOrder.tasks.map((t) =>
+      t.id === task.id ? { ...task, updatedAt: new Date().toISOString() } : t
+    );
+    const updatedOrder: WorkOrder = {
+      ...currentOrder,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveCurrentOrder(updatedOrder);
+  }, [currentOrder, saveCurrentOrder]);
+
+  const handleSaveEditingCosts = useCallback(async () => {
+    if (!editingValues || !editingCosts || !currentOrder) return;
+    const task = currentOrder.tasks.find((t) => t.id === editingCosts);
+    if (!task) return;
+    const updated: WorkTask = {
+      ...task,
+      saleCost: parseFloat(editingValues.saleCost) || 0,
+      laborSaleCost: parseFloat(editingValues.laborSaleCost) || 0,
+      realCost: parseFloat(editingValues.realCost) || 0,
+      laborRealCost: parseFloat(editingValues.laborRealCost) || 0,
+    };
+    await handleUpdateTaskCosts(updated);
+    setEditingCosts(null);
+    setEditingValues(null);
+  }, [editingValues, editingCosts, currentOrder, handleUpdateTaskCosts]);
+
   // If no order selected, show order picker
   if (!currentOrder) {
     return (
@@ -124,34 +154,6 @@ export default function BudgetScreen() {
       </View>
     );
   }
-
-  const handleUpdateTaskCosts = async (task: WorkTask) => {
-    const updatedTasks = currentOrder.tasks.map((t) =>
-      t.id === task.id ? { ...task, updatedAt: new Date().toISOString() } : t
-    );
-    const updatedOrder: WorkOrder = {
-      ...currentOrder,
-      tasks: updatedTasks,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveCurrentOrder(updatedOrder);
-  };
-
-  const handleSaveEditingCosts = useCallback(async () => {
-    if (!editingValues || !editingCosts || !currentOrder) return;
-    const task = currentOrder.tasks.find((t) => t.id === editingCosts);
-    if (!task) return;
-    const updated: WorkTask = {
-      ...task,
-      saleCost: parseFloat(editingValues.saleCost) || 0,
-      laborSaleCost: parseFloat(editingValues.laborSaleCost) || 0,
-      realCost: parseFloat(editingValues.realCost) || 0,
-      laborRealCost: parseFloat(editingValues.laborRealCost) || 0,
-    };
-    await handleUpdateTaskCosts(updated);
-    setEditingCosts(null);
-    setEditingValues(null);
-  }, [editingValues, editingCosts, currentOrder]);
 
   const generatePDFHtml = () => {
     const rows = currentOrder.tasks
