@@ -10,7 +10,7 @@
 
 | Layer | Technology |
 |---|---|
-| Runtime | React Native 0.81.5 / React 19.2.4 |
+| Runtime | React Native 0.81.5 / React 19.1.0 |
 | Framework | Expo ~54.0.33 (New Architecture enabled) |
 | Language | TypeScript (strict mode) |
 | Routing | expo-router ^6.0.23 (file-based) |
@@ -19,13 +19,16 @@
 | Camera/Media | expo-camera, expo-image-picker, expo-media-library |
 | File System | expo-file-system |
 | Export | expo-print (PDF), expo-sharing |
-| Animations | react-native-reanimated ^4.2.2 |
-| Gestures | react-native-gesture-handler ^2.30.0 |
+| Deep Linking | expo-linking ^8.0.11 |
+| Crypto | expo-crypto ^15.0.8 |
+| Animations | react-native-reanimated ~4.1.1 |
+| Worklets | react-native-worklets ^0.7.4 (required by reanimated v4) |
+| Gestures | react-native-gesture-handler ~2.28.0 |
 | Navigation infra | react-native-screens, react-native-safe-area-context |
 | Icons | @expo/vector-icons ^15 (Ionicons) |
-| Unique IDs | uuid ^9.0.0 |
+| Unique IDs | uuid ^9.0.0 + custom `src/utils/uuid.ts` shim |
 | Build config | expo-build-properties ^1.0.10 |
-| Testing | Jest ^30 + ts-jest + @testing-library/react-native |
+| Testing | Jest ~29.7.0 + ts-jest + @testing-library/react-native |
 
 ---
 
@@ -35,6 +38,8 @@
 SanchezMotors/
 ├── app/                            # Expo Router pages
 │   ├── _layout.tsx                 # Root layout — wraps AppProvider
+│   ├── index.tsx                   # Entry redirect to /(tabs)/reception
+│   ├── +not-found.tsx              # 404 not-found screen
 │   └── (tabs)/
 │       ├── _layout.tsx             # Tab bar config (3 tabs: Recepción, Tareas, Presupuesto)
 │       ├── reception.tsx           # Order intake & vehicle inspection
@@ -46,6 +51,8 @@ SanchezMotors/
 │   │   ├── ActionButton.tsx        # Variants: primary, secondary, danger, success
 │   │   ├── FormField.tsx           # Labeled TextInput with optional required marker
 │   │   ├── OrderCard.tsx           # Order list card with status, vehicle, task stats
+│   │   ├── OrderView.tsx           # Full-screen inline read-only order viewer (pinch-zoom photos)
+│   │   ├── OrderViewModal.tsx      # Modal overlay read-only order viewer
 │   │   ├── PhotoGrid.tsx           # 6-slot mandatory inspection photos
 │   │   ├── PinModal.tsx            # Admin PIN entry (4–6 digit, numeric, secure)
 │   │   ├── StatusBadge.tsx         # Colored pill badge for order/task status
@@ -66,15 +73,18 @@ SanchezMotors/
 │   └── utils/
 │       ├── formatters.ts           # Currency, dates, margin calculations
 │       ├── otGenerator.ts          # OT ID format: YYMMDD-##
+│       ├── uuid.ts                 # UUID v4 generator (Math.random-based, RN-compatible)
 │       └── __tests__/
 │           ├── formatters.test.ts
 │           └── otGenerator.test.ts
 │
 ├── assets/                         # Icons and splash screens
+├── scripts/
+│   └── build-and-install-android.sh  # Local dev build + ADB install script
 ├── .github/
 │   └── workflows/
 │       ├── test.yml                # CI: typecheck + tests on every push/PR
-│       └── build-android.yml       # CI: APK + AAB on main/release/tags (+ manual dispatch)
+│       └── build-android.yml       # CI: Release + Debug APKs on main/release/tags (+ manual dispatch)
 ├── app.json                        # Expo app manifest (scheme: "workshop-manager")
 ├── babel.config.js                 # Babel: babel-preset-expo + reanimated plugin
 ├── eas.json                        # EAS build profiles (preview / production)
@@ -124,6 +134,12 @@ npm run build:apk
 
 # Build App Bundle (Play Store, requires prebuild first)
 npm run build:aab
+
+# Build and install directly on a connected Android device (debug by default)
+npm run build:android:debug
+# Pass a build type argument: debug or release
+bash scripts/build-and-install-android.sh debug
+bash scripts/build-and-install-android.sh release
 ```
 
 ---
@@ -166,11 +182,14 @@ The CI enforces 50% minimum coverage across branches, functions, lines, and stat
 
 **`build-android.yml`** — runs on `main`, `release/**` branches, `v*` tags, and manual `workflow_dispatch` (Node 22, Java 17):
 1. Sets up Android SDK
-2. Generates native Android project (`expo prebuild`)
-3. Caches Gradle dependencies
-4. Builds release APK → uploads as artifact (30-day retention)
-5. Builds release AAB → uploads as artifact (30-day retention)
-6. Prints build summary to GitHub Step Summary
+2. Installs dependencies (`npm ci --legacy-peer-deps`)
+3. Generates native Android project (`expo prebuild`)
+4. Caches Gradle dependencies
+5. Builds release APK → uploads as artifact (30-day retention)
+6. Builds debug APK → uploads as artifact (30-day retention)
+7. Prints build summary to GitHub Step Summary with artifact paths and sizes
+
+> **Note:** The AAB (App Bundle) build step is currently **disabled** (commented out) in `build-android.yml`. Only APKs are produced by CI.
 
 ---
 
@@ -210,13 +229,27 @@ Order IDs are generated as `YYMMDD-##` (date prefix + daily sequence counter). T
 ### Exports and Backup
 `orderStorage.ts` exposes `exportDailyData()` which returns a pretty-printed JSON string of all orders created today, suitable for USB/OTG backup.
 
+### Read-Only Order View
+Two components provide read-only display of a `WorkOrder`:
+- **`OrderView`** — full-screen inline renderer (not a Modal). Supports pinch-to-zoom and pan on inspection photos via raw touch event handling. Has a pencil icon button in the header to trigger edit mode. Used as the primary view-only display.
+- **`OrderViewModal`** — modal overlay variant (slide animation). Photo preview is tap-to-open, no zoom. Has an "Editar Orden" footer button. Kept for reference; `OrderView` is the current production choice.
+
+Both components accept `{ order, onClose, onEdit }` props and display: client info, vehicle info, reason for visit, inspection photos, and task summary.
+
+### UUID Generation
+`src/utils/uuid.ts` exports `generateUUID()` — a UUID v4 implementation using `Math.random()`. This is used internally by `orderStorage.ts` to create task IDs. It avoids the `crypto.getRandomValues()` dependency that can cause issues in some React Native/Jest environments. The `uuid` npm package is still listed as a dependency but `generateUUID()` from this utility is the canonical source for new IDs.
+
 ### Android Target Configuration
 Configured via `expo-build-properties` plugin in `app.json`:
 - `compileSdkVersion`: 35
 - `targetSdkVersion`: 35
 - `minSdkVersion`: 24
+- `buildToolsVersion`: 35.0.0
 - `kotlinVersion`: 2.0.21
 - `ndkVersion`: 27.0.12077973
+- `sourceCompatibility`: VERSION_21
+- `targetCompatibility`: VERSION_21
+- `extraGradleProperties`: `kotlin.compose.compiler.suppressKotlinVersionCompatibilityCheck=true`
 
 ---
 
@@ -295,6 +328,14 @@ PHOTO_SLOT_LABELS: Record<PhotoSlot, string>
 
 ---
 
+## Utility Functions (`src/utils/uuid.ts`)
+
+| Function | Description |
+|---|---|
+| `generateUUID()` | Generates a UUID v4 using `Math.random()`; safe in React Native and Jest environments |
+
+---
+
 ## Theme System (`src/constants/theme.ts`)
 
 ```typescript
@@ -353,6 +394,7 @@ logout(): Promise<void>
 - **WhatsApp integration**: Mexico prefix (`52`) hardcoded; validates phone before deep-link
 - **Path alias**: `@/*` maps to the repo root (configured in `tsconfig.json`)
 - **Admin UI markers**: Admin-only sections use a red shield icon and "Solo Admin" dividers
+- **npm install**: Always use `--legacy-peer-deps` flag (required due to peer dependency conflicts)
 
 ---
 
@@ -362,7 +404,7 @@ logout(): Promise<void>
 - **New Architecture**: `newArchEnabled: true` — required by react-native-reanimated v4; do not disable
 - **Android permissions**: CAMERA, storage, RECORD_AUDIO, READ_MEDIA_IMAGES, READ_MEDIA_VIDEO, READ_MEDIA_AUDIO, READ_MEDIA_VISUAL_USER_SELECTED
 - **iOS**: Camera, photo library, and microphone usage descriptions provided (in Spanish)
-- **Package ID**: `com.anonymous.workshopmanager`
+- **Package ID**: `com.tuinsomnia.workshopmanager`
 
 ---
 
@@ -377,6 +419,22 @@ CLI version requirement: `>= 15.0.0`. `appVersionSource: "remote"`.
 
 ---
 
+## Local Build Script (`scripts/build-and-install-android.sh`)
+
+A convenience shell script that mirrors the CI build pipeline for local development:
+
+1. Installs dependencies with `npm install --legacy-peer-deps`
+2. Runs `expo prebuild --platform android --clean`
+3. Patches `android/build.gradle` to inject SDK version ext block if missing
+4. Builds the APK (debug or release) via Gradle
+5. Verifies the APK exists at the expected output path
+6. Checks for connected adb devices
+7. Installs the APK on the first connected device via `adb install -r`
+
+Usage: `npm run build:android:debug` (defaults to release build; pass `debug` or `release` as argument).
+
+---
+
 ## Future Roadmap (from code comments)
 
 - AWS Amplify DataStore + GraphQL for cloud sync
@@ -384,6 +442,7 @@ CLI version requirement: `>= 15.0.0`. `appVersionSource: "remote"`.
 - S3 for photo storage (`OrderImage.s3Link` already typed)
 - Activate skipped component tests (JSDOM env setup needed)
 - Expand to iOS builds
+- Re-enable AAB (App Bundle) CI build when Play Store distribution is ready
 
 ---
 
@@ -399,3 +458,7 @@ CLI version requirement: `>= 15.0.0`. `appVersionSource: "remote"`.
 - The default admin PIN is `"1234"` — never hardcode a different value as default; use `getAdminPin()` from `authStorage.ts`
 - Component tests in `__tests__/*.skip` files are intentionally skipped; do not rename them to `.tsx` without also updating the Jest environment
 - `createEmptyOrder(otId)` and `createEmptyTask(orderId)` are the canonical factory functions for new records — use them to ensure pk/sk fields are set correctly
+- Use `generateUUID()` from `src/utils/uuid.ts` for new IDs inside `src/` — it avoids the `crypto.getRandomValues()` issue in React Native and Jest
+- Always pass `--legacy-peer-deps` when running `npm install` or `npm ci`
+- The AAB build is currently disabled in CI; do not assume AAB artifacts are produced automatically
+- CI builds both a Release APK and a Debug APK on every qualifying push
