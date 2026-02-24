@@ -4,7 +4,7 @@
 // Rendered inline like the edit form — not a Modal overlay
 // =============================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
 import { WorkOrder } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -28,8 +29,87 @@ interface OrderViewProps {
 }
 
 export function OrderView({ order, onClose, onEdit }: OrderViewProps) {
+  const insets = useSafeAreaInsets();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [photoScale, setPhotoScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const touchStartDistanceRef = useRef(0);
+  const scaleAtStartRef = useRef(1);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const panStartXRef = useRef(0);
+  const panStartYRef = useRef(0);
+
+  const calculateDistance = (x1: number, y1: number, x2: number, y2: number) => {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handlePhotoTouchStart = (evt: any) => {
+    const { touches } = evt.nativeEvent;
+    if (touches.length === 2) {
+      // Pinch gesture
+      const distance = calculateDistance(
+        touches[0].pageX,
+        touches[0].pageY,
+        touches[1].pageX,
+        touches[1].pageY
+      );
+      touchStartDistanceRef.current = distance;
+      scaleAtStartRef.current = photoScale;
+    } else if (touches.length === 1 && photoScale > 1) {
+      // Pan gesture (only when zoomed)
+      touchStartXRef.current = touches[0].pageX;
+      touchStartYRef.current = touches[0].pageY;
+      panStartXRef.current = panX;
+      panStartYRef.current = panY;
+    }
+  };
+
+  const handlePhotoTouchMove = (evt: any) => {
+    const { touches } = evt.nativeEvent;
+    if (touches.length === 2 && touchStartDistanceRef.current > 0) {
+      // Pinch zoom
+      const distance = calculateDistance(
+        touches[0].pageX,
+        touches[0].pageY,
+        touches[1].pageX,
+        touches[1].pageY
+      );
+      const scaleFactor = distance / touchStartDistanceRef.current;
+      let newScale = scaleAtStartRef.current * scaleFactor;
+      newScale = Math.max(1, Math.min(newScale, 5));
+      setPhotoScale(newScale);
+    } else if (touches.length === 1 && photoScale > 1 && touchStartXRef.current > 0) {
+      // Pan/drag - adjust movement to match finger speed
+      const deltaX = (touches[0].pageX - touchStartXRef.current) / photoScale;
+      const deltaY = (touches[0].pageY - touchStartYRef.current) / photoScale;
+
+      const maxPan = (Dimensions.get('window').width / 2) * (photoScale - 1);
+      const newPanX = Math.max(-maxPan, Math.min(maxPan, panStartXRef.current + deltaX));
+      const newPanY = Math.max(-maxPan, Math.min(maxPan, panStartYRef.current + deltaY));
+
+      setPanX(newPanX);
+      setPanY(newPanY);
+    }
+  };
+
+  const handlePhotoTouchEnd = () => {
+    touchStartDistanceRef.current = 0;
+    touchStartXRef.current = 0;
+    touchStartYRef.current = 0;
+  };
+
+  const handlePhotoModalClose = () => {
+    setPhotoModalVisible(false);
+    setPhotoScale(1);
+    setPanX(0);
+    setPanY(0);
+    touchStartDistanceRef.current = 0;
+  };
 
   const completedPhotos = order.photos.filter((p) => p.uri).length;
   const totalPhotos = order.photos.length;
@@ -38,13 +118,22 @@ export function OrderView({ order, onClose, onEdit }: OrderViewProps) {
     <>
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: SPACING.lg + insets.top }]}>
           <View style={styles.headerLeft}>
             <Text style={styles.orderTitle}>OT #{order.id}</Text>
             <Text style={styles.createdDate}>{formatDate(order.createdAt)}</Text>
           </View>
           <View style={styles.headerRight}>
             <StatusBadge status={order.status} />
+            <TouchableOpacity
+              onPress={() => {
+                onClose();
+                onEdit();
+              }}
+              style={styles.editIconButton}
+            >
+              <Ionicons name="pencil" size={20} color={COLORS.white} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={28} color={COLORS.white} />
             </TouchableOpacity>
@@ -170,38 +259,29 @@ export function OrderView({ order, onClose, onEdit }: OrderViewProps) {
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
-
-        {/* Edit Button */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => {
-              onClose();
-              onEdit();
-            }}
-          >
-            <Ionicons name="pencil" size={20} color={COLORS.white} />
-            <Text style={styles.editButtonText}>Editar Orden</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* Photo Preview Modal */}
+      {/* Photo Preview Modal with Zoom Support */}
       <Modal visible={photoModalVisible} animationType="fade" transparent={true}>
         <View style={styles.photoModalContainer}>
-          <TouchableOpacity
-            style={styles.photoModalBackdrop}
-            onPress={() => setPhotoModalVisible(false)}
+          <View
+            style={styles.photoModalBackdropScroll}
+            onTouchStart={handlePhotoTouchStart}
+            onTouchMove={handlePhotoTouchMove}
+            onTouchEnd={handlePhotoTouchEnd}
           >
             <View style={styles.photoModalContent}>
               {selectedPhoto && (
-                <Image source={{ uri: selectedPhoto }} style={styles.fullPhoto} />
+                <Image
+                  source={{ uri: selectedPhoto }}
+                  style={[styles.fullPhoto, { transform: [{ scale: photoScale }, { translateX: panX }, { translateY: panY }] }]}
+                />
               )}
             </View>
-          </TouchableOpacity>
+          </View>
           <TouchableOpacity
             style={styles.photoCloseButton}
-            onPress={() => setPhotoModalVisible(false)}
+            onPress={handlePhotoModalClose}
           >
             <Ionicons name="close-circle" size={40} color={COLORS.white} />
           </TouchableOpacity>
@@ -243,6 +323,9 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     marginTop: SPACING.xs,
   },
+  editIconButton: {
+    padding: SPACING.xs,
+  },
   closeButton: {
     padding: SPACING.xs,
   },
@@ -250,7 +333,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     paddingBottom: SPACING.xxl + 60,
   },
   section: {
@@ -358,7 +442,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: COLORS.primary,
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     flexDirection: 'row',
     gap: SPACING.md,
   },
@@ -387,6 +472,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  photoModalBackdropScroll: {
+    flex: 1,
   },
   photoModalContent: {
     width: '100%',

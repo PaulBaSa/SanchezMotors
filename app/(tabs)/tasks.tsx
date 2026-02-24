@@ -5,7 +5,7 @@
 // - Time tracking per mechanic
 // =============================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,11 @@ import {
   TextInput,
   Alert,
   Image,
+  Dimensions,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, TOUCH_TARGET } from '../../src/constants/theme';
 import { ActionButton } from '../../src/components/ActionButton';
@@ -36,6 +39,7 @@ const COLUMNS: { key: KanbanColumn; label: string; color: string }[] = [
 ];
 
 export default function TasksScreen() {
+  const insets = useSafeAreaInsets();
   const { orders, currentOrder, setCurrentOrder, saveCurrentOrder } = useApp();
   const [selectedTask, setSelectedTask] = useState<WorkTask | null>(null);
   const [editingTask, setEditingTask] = useState(false);
@@ -44,7 +48,7 @@ export default function TasksScreen() {
   if (!currentOrder) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
           <Text style={styles.screenTitle}>Seguimiento de Tareas</Text>
         </View>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent}>
@@ -160,7 +164,7 @@ export default function TasksScreen() {
   // ========================
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
         <View>
           <Text style={styles.screenTitle}>Tareas</Text>
           <Text style={styles.orderRef}>OT #{currentOrder.id}</Text>
@@ -273,7 +277,84 @@ function TaskEditor({
   onDelete: () => void;
   onCancel: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const [editTask, setEditTask] = useState<WorkTask>({ ...task });
+  const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [photoScale, setPhotoScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const touchStartDistanceRef = useRef(0);
+  const scaleAtStartRef = useRef(1);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const panStartXRef = useRef(0);
+  const panStartYRef = useRef(0);
+
+  const calculateDistance = (x1: number, y1: number, x2: number, y2: number) => {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handlePhotoTouchStart = (evt: any) => {
+    const { touches } = evt.nativeEvent;
+    if (touches.length === 2) {
+      const distance = calculateDistance(
+        touches[0].pageX,
+        touches[0].pageY,
+        touches[1].pageX,
+        touches[1].pageY
+      );
+      touchStartDistanceRef.current = distance;
+      scaleAtStartRef.current = photoScale;
+    } else if (touches.length === 1 && photoScale > 1) {
+      touchStartXRef.current = touches[0].pageX;
+      touchStartYRef.current = touches[0].pageY;
+      panStartXRef.current = panX;
+      panStartYRef.current = panY;
+    }
+  };
+
+  const handlePhotoTouchMove = (evt: any) => {
+    const { touches } = evt.nativeEvent;
+    if (touches.length === 2 && touchStartDistanceRef.current > 0) {
+      const distance = calculateDistance(
+        touches[0].pageX,
+        touches[0].pageY,
+        touches[1].pageX,
+        touches[1].pageY
+      );
+      const scaleFactor = distance / touchStartDistanceRef.current;
+      let newScale = scaleAtStartRef.current * scaleFactor;
+      newScale = Math.max(1, Math.min(newScale, 5));
+      setPhotoScale(newScale);
+    } else if (touches.length === 1 && photoScale > 1 && touchStartXRef.current > 0) {
+      const deltaX = (touches[0].pageX - touchStartXRef.current) / photoScale;
+      const deltaY = (touches[0].pageY - touchStartYRef.current) / photoScale;
+
+      const maxPan = (Dimensions.get('window').width / 2) * (photoScale - 1);
+      const newPanX = Math.max(-maxPan, Math.min(maxPan, panStartXRef.current + deltaX));
+      const newPanY = Math.max(-maxPan, Math.min(maxPan, panStartYRef.current + deltaY));
+
+      setPanX(newPanX);
+      setPanY(newPanY);
+    }
+  };
+
+  const handlePhotoTouchEnd = () => {
+    touchStartDistanceRef.current = 0;
+    touchStartXRef.current = 0;
+    touchStartYRef.current = 0;
+  };
+
+  const handlePhotoModalClose = () => {
+    setPhotoModalVisible(false);
+    setPhotoScale(1);
+    setPanX(0);
+    setPanY(0);
+    touchStartDistanceRef.current = 0;
+  };
 
   const handleAddPhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -303,7 +384,7 @@ function TaskEditor({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.editorHeader}>
+      <View style={[styles.editorHeader, { paddingTop: SPACING.md + insets.top }]}>
         <Text style={styles.editorTitle}>
           {task.description ? 'Editar Tarea' : 'Nueva Tarea'}
         </Text>
@@ -402,7 +483,15 @@ function TaskEditor({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
             {editTask.evidencePhotos.map((photo) => (
               <View key={photo.id} style={styles.evidencePhoto}>
-                <Image source={{ uri: photo.uri }} style={styles.evidenceImg} />
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedPhotoUri(photo.uri);
+                    setPhotoModalVisible(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Image source={{ uri: photo.uri }} style={styles.evidenceImg} />
+                </TouchableOpacity>
                 <TextInput
                   style={styles.photoNote}
                   value={photo.note}
@@ -414,6 +503,7 @@ function TaskEditor({
                   }}
                   placeholder="Nota..."
                   placeholderTextColor={COLORS.textLight}
+                  editable={!photoModalVisible}
                 />
               </View>
             ))}
@@ -442,6 +532,33 @@ function TaskEditor({
       </View>
 
       <View style={styles.bottomSpacer} />
+
+      {/* Photo Zoom Modal */}
+      <Modal visible={photoModalVisible} animationType="fade" transparent={true}>
+        <View style={styles.photoModalContainer}>
+          <View
+            style={styles.photoModalBackdropScroll}
+            onTouchStart={handlePhotoTouchStart}
+            onTouchMove={handlePhotoTouchMove}
+            onTouchEnd={handlePhotoTouchEnd}
+          >
+            <View style={styles.photoModalContent}>
+              {selectedPhotoUri && (
+                <Image
+                  source={{ uri: selectedPhotoUri }}
+                  style={[styles.fullPhoto, { transform: [{ scale: photoScale }, { translateX: panX }, { translateY: panY }] }]}
+                />
+              )}
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.photoCloseButton}
+            onPress={handlePhotoModalClose}
+          >
+            <Ionicons name="close-circle" size={40} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -725,5 +842,30 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 60,
+  },
+  photoModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoModalBackdropScroll: {
+    flex: 1,
+  },
+  photoModalContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullPhoto: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
+    resizeMode: 'contain',
+  },
+  photoCloseButton: {
+    position: 'absolute',
+    top: SPACING.lg,
+    right: SPACING.lg,
   },
 });

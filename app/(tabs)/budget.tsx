@@ -18,6 +18,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, TOUCH_TARGET } from '../../src/constants/theme';
@@ -30,6 +31,7 @@ import { formatCurrency, calculateMargin } from '../../src/utils/formatters';
 import { loginAsAdmin } from '../../src/storage/authStorage';
 
 export default function BudgetScreen() {
+  const insets = useSafeAreaInsets();
   const { orders, currentOrder, setCurrentOrder, saveCurrentOrder, isAdmin, login, logout } =
     useApp();
   const [showPinModal, setShowPinModal] = useState(false);
@@ -96,7 +98,7 @@ export default function BudgetScreen() {
   if (!currentOrder) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
           <Text style={styles.screenTitle}>Presupuesto</Text>
           {isAdmin ? (
             <ActionButton title="Salir Admin" onPress={logout} variant="danger" />
@@ -252,7 +254,7 @@ export default function BudgetScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
         <View>
           <Text style={styles.screenTitle}>Presupuesto</Text>
           <Text style={styles.orderRef}>OT #{currentOrder.id}</Text>
@@ -310,9 +312,9 @@ export default function BudgetScreen() {
                 <View style={styles.lineHeader}>
                   <Text style={styles.lineDescription}>{task.description || 'Sin descripción'}</Text>
                   <Ionicons
-                    name={editingCosts === task.id ? 'chevron-up' : 'chevron-down'}
-                    size={24}
-                    color={COLORS.textSecondary}
+                    name={editingCosts === task.id ? 'checkmark-circle' : 'pencil'}
+                    size={editingCosts === task.id ? 24 : 20}
+                    color={editingCosts === task.id ? COLORS.accent : COLORS.textSecondary}
                   />
                 </View>
               </TouchableOpacity>

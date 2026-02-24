@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, TOUCH_TARGET } from '../../src/constants/theme';
 import { FormField } from '../../src/components/FormField';
@@ -30,6 +31,7 @@ import { createEmptyOrder } from '../../src/storage/orderStorage';
 import { WorkOrder, VehicleInfo, InspectionPhoto } from '../../src/types';
 
 export default function ReceptionScreen() {
+  const insets = useSafeAreaInsets();
   const { orders, currentOrder, setCurrentOrder, saveCurrentOrder, loadOrders } = useApp();
   const [isCreating, setIsCreating] = useState(false);
   const [editOrder, setEditOrder] = useState<WorkOrder | null>(null);
@@ -49,13 +51,13 @@ export default function ReceptionScreen() {
   }, [isViewing]);
 
   // Reset to order list when tab is tapped while already on it
+  // Keep currentOrder persisted across tabs
   useFocusEffect(
     useCallback(() => {
       if (hasBeenFocused.current && (isCreatingRef.current || isViewingRef.current)) {
-        // Tab was tapped while viewing/editing - reset to order list
+        // Tab was tapped while viewing/editing - reset to order list but keep currentOrder
         setIsCreating(false);
         setEditOrder(null);
-        setCurrentOrder(null);
         setIsViewing(false);
         setViewingOrder(null);
       }
@@ -64,7 +66,7 @@ export default function ReceptionScreen() {
       return () => {
         // Cleanup if needed
       };
-    }, [setCurrentOrder])
+    }, [])
   );
 
   useEffect(() => {
@@ -138,6 +140,7 @@ export default function ReceptionScreen() {
 
   const handleSelectOrder = (order: WorkOrder) => {
     setViewingOrder(order);
+    setCurrentOrder(order);
     setIsViewing(true);
   };
 
@@ -181,7 +184,7 @@ export default function ReceptionScreen() {
       >
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
           {/* Header */}
-          <View style={styles.formHeader}>
+          <View style={[styles.formHeader, { marginTop: insets.top }]}>
             <View>
               <Text style={styles.otLabel}>Orden de Trabajo</Text>
               <Text style={styles.otId}>#{editOrder.id}</Text>
@@ -330,7 +333,7 @@ export default function ReceptionScreen() {
   // ========================
   return (
     <View style={styles.container}>
-      <View style={styles.listHeader}>
+      <View style={[styles.listHeader, { paddingTop: SPACING.md + insets.top }]}>
         <Text style={styles.screenTitle}>Recepción</Text>
         <ActionButton
           title="Nueva OT"

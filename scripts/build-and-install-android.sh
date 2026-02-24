@@ -63,15 +63,45 @@ if ! grep -q "minSdkVersion = findProperty" android/build.gradle; then
 fi
 
 
-# Step 3: Check if adb is available
-echo -e "${YELLOW}Step 3: Checking Android setup...${NC}"
+# Step 3: Build APK
+echo -e "${YELLOW}Step 3: Building $BUILD_TYPE APK...${NC}"
+cd android
+
+# Pass Android SDK versions as Gradle properties to override rootProject.ext defaults
+if [ "$BUILD_TYPE" = "debug" ]; then
+  ./gradlew assembleDebug --stacktrace
+  APK_OUTPUT_DIR="debug"
+  APK_FILENAME="app-debug.apk"
+else
+  ./gradlew assembleRelease --stacktrace
+  APK_OUTPUT_DIR="release"
+  APK_FILENAME="app-release.apk"
+fi
+
+echo -e "${GREEN}✓ Build complete${NC}"
+
+# Verify APK exists
+APK_PATH="android/app/build/outputs/apk/$APK_OUTPUT_DIR/$APK_FILENAME"
+
+if [ ! -f "$APK_PATH" ]; then
+  echo -e "${RED}❌ APK not found at expected path: $APK_PATH${NC}"
+  echo -e "${RED}Available APK files:${NC}"
+  find app/build/outputs -name "*.apk" 2>/dev/null || echo "No APKs found"
+  exit 1
+fi
+
+# Return to root directory for adb commands
+cd ..
+
+# Step 4: Check if adb is available
+echo -e "${YELLOW}Step 4: Checking Android setup...${NC}"
 if ! command -v adb &> /dev/null; then
   echo -e "${RED}❌ adb not found. Please ensure Android SDK is installed and adb is in your PATH.${NC}"
   exit 1
 fi
 
-# Step 4: Check if a device is connected
-echo -e "${YELLOW}Step 4: Checking for connected devices...${NC}"
+# Step 5: Check if a device is connected
+echo -e "${YELLOW}Step 5: Checking for connected devices...${NC}"
 adb devices
 echo ""
 
@@ -95,35 +125,8 @@ if [ "$DEVICE_COUNT" -gt 1 ]; then
   read -p "Using first device. Press Enter to continue or Ctrl+C to cancel."
 fi
 
-# Step 5: Build APK
-echo -e "${YELLOW}Step 5: Building $BUILD_TYPE APK...${NC}"
-cd android
-
-# Pass Android SDK versions as Gradle properties to override rootProject.ext defaults
-if [ "$BUILD_TYPE" = "debug" ]; then
-  ./gradlew assembleDebug --stacktrace
-  APK_OUTPUT_DIR="debug"
-  APK_FILENAME="app-debug.apk"
-else
-  ./gradlew assembleRelease --stacktrace
-  APK_OUTPUT_DIR="release"
-  APK_FILENAME="app-release.apk"
-fi
-
-echo -e "${GREEN}✓ Build complete${NC}"
-
 # Step 6: Install on device
 echo -e "${YELLOW}Step 6: Installing on device...${NC}"
-
-# Get the APK path
-APK_PATH="app/build/outputs/apk/$APK_OUTPUT_DIR/$APK_FILENAME"
-
-if [ ! -f "$APK_PATH" ]; then
-  echo -e "${RED}❌ APK not found at expected path: $APK_PATH${NC}"
-  echo -e "${RED}Available APK files:${NC}"
-  find app/build/outputs -name "*.apk" 2>/dev/null || echo "No APKs found"
-  exit 1
-fi
 
 echo -e "${YELLOW}APK Size: $(du -h "$APK_PATH" | cut -f1)${NC}"
 adb install -r "$APK_PATH"
