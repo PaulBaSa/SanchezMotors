@@ -6,7 +6,7 @@
 // - WhatsApp share + PDF export
 // =============================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,12 @@ export default function BudgetScreen() {
     useApp();
   const [showPinModal, setShowPinModal] = useState(false);
   const [editingCosts, setEditingCosts] = useState<string | null>(null);
+  const [editingValues, setEditingValues] = useState<{
+    saleCost: string;
+    laborSaleCost: string;
+    realCost: string;
+    laborRealCost: string;
+  } | null>(null);
 
   // Calculate budget summary — must be before any conditional returns (React Rules of Hooks)
   const summary: BudgetSummary = useMemo(() => {
@@ -129,8 +135,23 @@ export default function BudgetScreen() {
       updatedAt: new Date().toISOString(),
     };
     await saveCurrentOrder(updatedOrder);
-    setEditingCosts(null);
   };
+
+  const handleSaveEditingCosts = useCallback(async () => {
+    if (!editingValues || !editingCosts || !currentOrder) return;
+    const task = currentOrder.tasks.find((t) => t.id === editingCosts);
+    if (!task) return;
+    const updated: WorkTask = {
+      ...task,
+      saleCost: parseFloat(editingValues.saleCost) || 0,
+      laborSaleCost: parseFloat(editingValues.laborSaleCost) || 0,
+      realCost: parseFloat(editingValues.realCost) || 0,
+      laborRealCost: parseFloat(editingValues.laborRealCost) || 0,
+    };
+    await handleUpdateTaskCosts(updated);
+    setEditingCosts(null);
+    setEditingValues(null);
+  }, [editingValues, editingCosts, currentOrder]);
 
   const generatePDFHtml = () => {
     const rows = currentOrder.tasks
@@ -268,9 +289,20 @@ export default function BudgetScreen() {
           currentOrder.tasks.map((task) => (
             <View key={task.id} style={styles.lineItem}>
               <TouchableOpacity
-                onPress={() =>
-                  setEditingCosts(editingCosts === task.id ? null : task.id)
-                }
+                onPress={() => {
+                  if (editingCosts === task.id) {
+                    setEditingCosts(null);
+                    setEditingValues(null);
+                  } else {
+                    setEditingCosts(task.id);
+                    setEditingValues({
+                      saleCost: task.saleCost > 0 ? String(task.saleCost) : '',
+                      laborSaleCost: task.laborSaleCost > 0 ? String(task.laborSaleCost) : '',
+                      realCost: task.realCost > 0 ? String(task.realCost) : '',
+                      laborRealCost: task.laborRealCost > 0 ? String(task.laborRealCost) : '',
+                    });
+                  }
+                }}
                 activeOpacity={0.7}
               >
                 <View style={styles.lineHeader}>
@@ -289,11 +321,10 @@ export default function BudgetScreen() {
                 {editingCosts === task.id ? (
                   <TextInput
                     style={styles.priceInput}
-                    value={task.saleCost > 0 ? String(task.saleCost) : ''}
-                    onChangeText={(text) => {
-                      const updated = { ...task, saleCost: parseFloat(text) || 0 };
-                      handleUpdateTaskCosts(updated);
-                    }}
+                    value={editingValues?.saleCost ?? ''}
+                    onChangeText={(text) =>
+                      setEditingValues((prev) => prev ? { ...prev, saleCost: text } : null)
+                    }
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={COLORS.textLight}
@@ -308,11 +339,10 @@ export default function BudgetScreen() {
                 {editingCosts === task.id ? (
                   <TextInput
                     style={styles.priceInput}
-                    value={task.laborSaleCost > 0 ? String(task.laborSaleCost) : ''}
-                    onChangeText={(text) => {
-                      const updated = { ...task, laborSaleCost: parseFloat(text) || 0 };
-                      handleUpdateTaskCosts(updated);
-                    }}
+                    value={editingValues?.laborSaleCost ?? ''}
+                    onChangeText={(text) =>
+                      setEditingValues((prev) => prev ? { ...prev, laborSaleCost: text } : null)
+                    }
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={COLORS.textLight}
@@ -334,11 +364,10 @@ export default function BudgetScreen() {
                     <Text style={[styles.priceLabel, styles.adminLabel]}>Costo real refacciones</Text>
                     <TextInput
                       style={[styles.priceInput, styles.adminInput]}
-                      value={task.realCost > 0 ? String(task.realCost) : ''}
-                      onChangeText={(text) => {
-                        const updated = { ...task, realCost: parseFloat(text) || 0 };
-                        handleUpdateTaskCosts(updated);
-                      }}
+                      value={editingValues?.realCost ?? ''}
+                      onChangeText={(text) =>
+                        setEditingValues((prev) => prev ? { ...prev, realCost: text } : null)
+                      }
                       keyboardType="decimal-pad"
                       placeholder="0.00"
                       placeholderTextColor={COLORS.textLight}
@@ -349,18 +378,17 @@ export default function BudgetScreen() {
                     <Text style={[styles.priceLabel, styles.adminLabel]}>Costo real mano de obra</Text>
                     <TextInput
                       style={[styles.priceInput, styles.adminInput]}
-                      value={task.laborRealCost > 0 ? String(task.laborRealCost) : ''}
-                      onChangeText={(text) => {
-                        const updated = { ...task, laborRealCost: parseFloat(text) || 0 };
-                        handleUpdateTaskCosts(updated);
-                      }}
+                      value={editingValues?.laborRealCost ?? ''}
+                      onChangeText={(text) =>
+                        setEditingValues((prev) => prev ? { ...prev, laborRealCost: text } : null)
+                      }
                       keyboardType="decimal-pad"
                       placeholder="0.00"
                       placeholderTextColor={COLORS.textLight}
                     />
                   </View>
 
-                  {/* Per-task margin */}
+                  {/* Per-task margin (reflects current editing values) */}
                   <View style={styles.taskMargin}>
                     <Text style={styles.taskMarginLabel}>Utilidad por tarea:</Text>
                     <Text
@@ -368,18 +396,32 @@ export default function BudgetScreen() {
                         styles.taskMarginValue,
                         {
                           color:
-                            task.saleCost + task.laborSaleCost - task.realCost - task.laborRealCost >= 0
+                            (parseFloat(editingValues?.saleCost ?? '') || 0) +
+                              (parseFloat(editingValues?.laborSaleCost ?? '') || 0) -
+                              (parseFloat(editingValues?.realCost ?? '') || 0) -
+                              (parseFloat(editingValues?.laborRealCost ?? '') || 0) >= 0
                               ? COLORS.profit
                               : COLORS.loss,
                         },
                       ]}
                     >
                       {formatCurrency(
-                        task.saleCost + task.laborSaleCost - task.realCost - task.laborRealCost
+                        (parseFloat(editingValues?.saleCost ?? '') || 0) +
+                          (parseFloat(editingValues?.laborSaleCost ?? '') || 0) -
+                          (parseFloat(editingValues?.realCost ?? '') || 0) -
+                          (parseFloat(editingValues?.laborRealCost ?? '') || 0)
                       )}
                     </Text>
                   </View>
                 </View>
+              )}
+
+              {/* Save button shown while editing */}
+              {editingCosts === task.id && (
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveEditingCosts} activeOpacity={0.8}>
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                </TouchableOpacity>
               )}
 
               <View style={styles.lineSubtotal}>
@@ -592,6 +634,22 @@ const styles = StyleSheet.create({
     width: 120,
     textAlign: 'right',
     minHeight: 44,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.success,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm,
+    marginTop: SPACING.sm,
+    minHeight: TOUCH_TARGET.minHeight,
+  },
+  saveButtonText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: FONT_SIZES.md,
   },
   lineSubtotal: {
     flexDirection: 'row',
