@@ -23,7 +23,7 @@ import { FormField } from '../../src/components/FormField';
 import { ActionButton } from '../../src/components/ActionButton';
 import { PhotoGrid } from '../../src/components/PhotoGrid';
 import { OrderCard } from '../../src/components/OrderCard';
-import { OrderViewModal } from '../../src/components/OrderViewModal';
+import { OrderView } from '../../src/components/OrderView';
 import { useApp } from '../../src/storage/AppContext';
 import { generateOTId } from '../../src/utils/otGenerator';
 import { createEmptyOrder } from '../../src/storage/orderStorage';
@@ -34,10 +34,10 @@ export default function ReceptionScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [editOrder, setEditOrder] = useState<WorkOrder | null>(null);
   const [viewingOrder, setViewingOrder] = useState<WorkOrder | null>(null);
-  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [isViewing, setIsViewing] = useState(false);
   const hasBeenFocused = useRef(false);
   const isCreatingRef = useRef(false);
-  const viewModalVisibleRef = useRef(false);
+  const isViewingRef = useRef(false);
 
   // Track state changes in refs
   useEffect(() => {
@@ -45,18 +45,18 @@ export default function ReceptionScreen() {
   }, [isCreating]);
 
   useEffect(() => {
-    viewModalVisibleRef.current = viewModalVisible;
-  }, [viewModalVisible]);
+    isViewingRef.current = isViewing;
+  }, [isViewing]);
 
   // Reset to order list when tab is tapped while already on it
   useFocusEffect(
     useCallback(() => {
-      if (hasBeenFocused.current && (isCreatingRef.current || viewModalVisibleRef.current)) {
+      if (hasBeenFocused.current && (isCreatingRef.current || isViewingRef.current)) {
         // Tab was tapped while viewing/editing - reset to order list
         setIsCreating(false);
         setEditOrder(null);
         setCurrentOrder(null);
-        setViewModalVisible(false);
+        setIsViewing(false);
         setViewingOrder(null);
       }
       hasBeenFocused.current = true;
@@ -138,7 +138,7 @@ export default function ReceptionScreen() {
 
   const handleSelectOrder = (order: WorkOrder) => {
     setViewingOrder(order);
-    setViewModalVisible(true);
+    setIsViewing(true);
   };
 
   const handleEditFromView = () => {
@@ -153,6 +153,22 @@ export default function ReceptionScreen() {
     setCurrentOrder(order);
     setIsCreating(true);
   };
+
+  // ========================
+  // ORDER VIEW (read-only)
+  // ========================
+  if (isViewing && viewingOrder) {
+    return (
+      <OrderView
+        order={viewingOrder}
+        onClose={() => {
+          setIsViewing(false);
+          setViewingOrder(null);
+        }}
+        onEdit={handleEditFromView}
+      />
+    );
+  }
 
   // ========================
   // ORDER FORM VIEW
@@ -345,15 +361,6 @@ export default function ReceptionScreen() {
         )}
       </ScrollView>
 
-      <OrderViewModal
-        order={viewingOrder}
-        visible={viewModalVisible}
-        onClose={() => {
-          setViewModalVisible(false);
-          setViewingOrder(null);
-        }}
-        onEdit={handleEditFromView}
-      />
     </View>
   );
 }
