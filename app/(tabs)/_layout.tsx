@@ -31,6 +31,7 @@ export default function TabLayout() {
           marginBottom: -4,
         },
       }}
+      initialRouteName="tasks"
     >
       <Tabs.Screen
         name="reception"

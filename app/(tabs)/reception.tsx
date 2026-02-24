@@ -6,7 +6,7 @@
 // - Reason for visit notes
 // =============================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, TOUCH_TARGET } from '../../src/constants/theme';
 import { FormField } from '../../src/components/FormField';
 import { ActionButton } from '../../src/components/ActionButton';
 import { PhotoGrid } from '../../src/components/PhotoGrid';
 import { OrderCard } from '../../src/components/OrderCard';
+import { OrderViewModal } from '../../src/components/OrderViewModal';
 import { useApp } from '../../src/storage/AppContext';
 import { generateOTId } from '../../src/utils/otGenerator';
 import { createEmptyOrder } from '../../src/storage/orderStorage';
@@ -31,6 +33,39 @@ export default function ReceptionScreen() {
   const { orders, currentOrder, setCurrentOrder, saveCurrentOrder, loadOrders } = useApp();
   const [isCreating, setIsCreating] = useState(false);
   const [editOrder, setEditOrder] = useState<WorkOrder | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<WorkOrder | null>(null);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const hasBeenFocused = useRef(false);
+  const isCreatingRef = useRef(false);
+  const viewModalVisibleRef = useRef(false);
+
+  // Track state changes in refs
+  useEffect(() => {
+    isCreatingRef.current = isCreating;
+  }, [isCreating]);
+
+  useEffect(() => {
+    viewModalVisibleRef.current = viewModalVisible;
+  }, [viewModalVisible]);
+
+  // Reset to order list when tab is tapped while already on it
+  useFocusEffect(
+    useCallback(() => {
+      if (hasBeenFocused.current && (isCreatingRef.current || viewModalVisibleRef.current)) {
+        // Tab was tapped while viewing/editing - reset to order list
+        setIsCreating(false);
+        setEditOrder(null);
+        setCurrentOrder(null);
+        setViewModalVisible(false);
+        setViewingOrder(null);
+      }
+      hasBeenFocused.current = true;
+
+      return () => {
+        // Cleanup if needed
+      };
+    }, [setCurrentOrder])
+  );
 
   useEffect(() => {
     if (currentOrder) {
@@ -102,6 +137,18 @@ export default function ReceptionScreen() {
   };
 
   const handleSelectOrder = (order: WorkOrder) => {
+    setViewingOrder(order);
+    setViewModalVisible(true);
+  };
+
+  const handleEditFromView = () => {
+    if (!viewingOrder) return;
+    setEditOrder({ ...viewingOrder });
+    setCurrentOrder(viewingOrder);
+    setIsCreating(true);
+  };
+
+  const handleEditFromCard = (order: WorkOrder) => {
     setEditOrder({ ...order });
     setCurrentOrder(order);
     setIsCreating(true);
@@ -292,10 +339,21 @@ export default function ReceptionScreen() {
               key={order.id}
               order={order}
               onPress={() => handleSelectOrder(order)}
+              onEditPress={() => handleEditFromCard(order)}
             />
           ))
         )}
       </ScrollView>
+
+      <OrderViewModal
+        order={viewingOrder}
+        visible={viewModalVisible}
+        onClose={() => {
+          setViewModalVisible(false);
+          setViewingOrder(null);
+        }}
+        onEdit={handleEditFromView}
+      />
     </View>
   );
 }

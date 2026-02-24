@@ -9,9 +9,10 @@ import { formatDate } from '../utils/formatters';
 interface OrderCardProps {
   order: WorkOrder;
   onPress: () => void;
+  onEditPress?: () => void;
 }
 
-export function OrderCard({ order, onPress }: OrderCardProps) {
+export function OrderCard({ order, onPress, onEditPress }: OrderCardProps) {
   const completedTasks = order.tasks.filter((t) => t.status === 'completed').length;
   const totalTasks = order.tasks.length;
   const photosCount = order.photos.filter((p) => p.uri).length;
@@ -23,7 +24,20 @@ export function OrderCard({ order, onPress }: OrderCardProps) {
           <Text style={styles.otId}>OT #{order.id}</Text>
           <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
         </View>
-        <StatusBadge status={order.status} />
+        <View style={styles.headerRight}>
+          <StatusBadge status={order.status} />
+          {onEditPress && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onEditPress();
+              }}
+            >
+              <Ionicons name="pencil" size={18} color={COLORS.accent} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={styles.vehicleInfo}>
@@ -83,6 +97,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: SPACING.sm,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  editButton: {
+    padding: SPACING.xs,
   },
   otId: {
     fontSize: FONT_SIZES.xl,

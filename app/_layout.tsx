@@ -11,6 +11,21 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from '../src/storage/AppContext';
 import { COLORS } from '../src/constants/theme';
 
+export const linking = {
+  prefixes: ['workshop-manager://', ''],
+  config: {
+    screens: {
+      '(tabs)': {
+        screens: {
+          reception: 'reception',
+          tasks: 'tasks',
+          budget: 'budget',
+        },
+      },
+    },
+  },
+};
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -25,6 +40,7 @@ export default function RootLayout() {
             initialRouteName="(tabs)"
           >
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="+not-found" />
           </Stack>
         </AppProvider>
       </SafeAreaProvider>

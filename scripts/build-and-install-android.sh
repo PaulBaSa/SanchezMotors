@@ -128,6 +128,9 @@ fi
 echo -e "${YELLOW}APK Size: $(du -h "$APK_PATH" | cut -f1)${NC}"
 adb install -r "$APK_PATH"
 
+# echo "==> Step 7/8: Launching app on device..."
+# adb shell am start -n "$PACKAGE/.MainActivity"
+
 echo -e "${GREEN}✓ Installation complete!${NC}"
 echo ""
 echo -e "${GREEN}🎉 SanchezMotors ($BUILD_TYPE_UPPER) is ready to use on your device!${NC}"
