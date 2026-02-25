@@ -4,32 +4,32 @@
 // =============================================
 
 export const COLORS = {
-  // Primary palette
-  primary: '#1a1a2e',
-  primaryLight: '#16213e',
-  accent: '#0f3460',
-  highlight: '#e94560',
+  // Primary palette - Sanchez Motors brand colors
+  primary: '#1e5080',          // Dark teal blue from logo
+  primaryLight: '#2a6aa8',     // Lighter teal
+  accent: '#ff9a00',           // Orange/gold from logo
+  highlight: '#ff9a00',        // Same as accent for consistency
 
   // Status colors
-  success: '#2ecc71',
-  warning: '#f39c12',
+  success: '#27ae60',
+  warning: '#ff9a00',          // Use brand orange for warnings
   danger: '#e74c3c',
-  info: '#3498db',
+  info: '#2a6aa8',             // Use brand blue for info
 
   // Neutrals
   white: '#ffffff',
   background: '#f5f6fa',
   card: '#ffffff',
   border: '#dcdde1',
-  textPrimary: '#2c3e50',
+  textPrimary: '#1e5080',      // Use brand blue for primary text
   textSecondary: '#7f8c8d',
   textLight: '#bdc3c7',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlay: 'rgba(30, 80, 128, 0.5)',  // Use brand blue overlay
 
   // Kanban columns
-  kanbanPending: '#ffeaa7',
-  kanbanInProgress: '#74b9ff',
-  kanbanCompleted: '#55efc4',
+  kanbanPending: '#ffe4b3',    // Light orange
+  kanbanInProgress: '#a8d4f7', // Light blue
+  kanbanCompleted: '#b3e5d4',  // Light teal
 
   // Admin/Finance
   profit: '#27ae60',
