@@ -60,7 +60,8 @@
             "sourceCompatibility": "VERSION_21",
             "targetCompatibility": "VERSION_21",
             "extraGradleProperties": {
-              "kotlin.compose.compiler.suppressKotlinVersionCompatibilityCheck": "true"
+              "kotlin.compose.compiler.suppressKotlinVersionCompatibilityCheck": "true",
+              "android.enable16KPageSize": "true"
             }
           }
         }
