@@ -404,7 +404,7 @@ logout(): Promise<void>
 - **New Architecture**: `newArchEnabled: true` — required by react-native-reanimated v4; do not disable
 - **Android permissions**: CAMERA, storage, RECORD_AUDIO, READ_MEDIA_IMAGES, READ_MEDIA_VIDEO, READ_MEDIA_AUDIO, READ_MEDIA_VISUAL_USER_SELECTED
 - **iOS**: Camera, photo library, and microphone usage descriptions provided (in Spanish)
-- **Package ID**: `com.tuinsomnia.SanchezMotors`
+- **Package ID**: `com.tuinsomnia.sanchezmotors`
 
 ---
 
