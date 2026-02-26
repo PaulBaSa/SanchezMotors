@@ -49,7 +49,14 @@ export default function TasksScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
-          <Text style={styles.screenTitle}>Seguimiento de Tareas</Text>
+          <View style={styles.headerLeft}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.screenTitle}>Seguimiento de Tareas</Text>
+          </View>
         </View>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent}>
           {orders.length === 0 ? (
@@ -165,21 +172,29 @@ export default function TasksScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
-        <View>
-          <Text style={styles.screenTitle}>Tareas</Text>
-          <Text style={styles.orderRef}>OT #{currentOrder.id}</Text>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <View>
+            <Text style={styles.screenTitle}>Tareas</Text>
+            <Text style={styles.orderRef}>OT #{currentOrder.id}</Text>
+          </View>
         </View>
         <View style={styles.headerButtons}>
           <ActionButton
             title="+ Tarea"
             onPress={handleAddTask}
             variant="primary"
+            compact
           />
           <TouchableOpacity
             onPress={() => setCurrentOrder(null)}
             style={styles.closeBtn}
           >
-            <Ionicons name="close-circle" size={32} color={COLORS.white} />
+            <Ionicons name="close-circle" size={26} color={COLORS.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -579,6 +594,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     backgroundColor: COLORS.primary,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
   },
   screenTitle: {
     fontSize: FONT_SIZES.xxl,
