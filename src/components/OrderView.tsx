@@ -18,9 +18,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
-import { WorkOrder } from '../types';
+import { WorkOrder, PHOTO_SLOT_LABELS } from '../types';
 import { StatusBadge } from './StatusBadge';
-import { formatDate } from '../utils/formatters';
+import { formatDate, getStatusLabel } from '../utils/formatters';
 
 interface OrderViewProps {
   order: WorkOrder;
@@ -226,7 +226,7 @@ export function OrderView({ order, onClose, onEdit }: OrderViewProps) {
                     <>
                       <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
                       <View style={styles.photoLabel}>
-                        <Text style={styles.photoSlotName}>{photo.slot}</Text>
+                        <Text style={styles.photoSlotName}>{PHOTO_SLOT_LABELS[photo.slot]}</Text>
                       </View>
                     </>
                   ) : (
@@ -250,7 +250,7 @@ export function OrderView({ order, onClose, onEdit }: OrderViewProps) {
                   <Text style={styles.taskNumber}>{idx + 1}.</Text>
                   <View style={styles.taskContent}>
                     <Text style={styles.taskDescription}>{task.description || 'Sin descripción'}</Text>
-                    <Text style={styles.taskMeta}>{task.status}</Text>
+                    <Text style={styles.taskMeta}>{getStatusLabel(task.status)}</Text>
                   </View>
                 </View>
               ))}
