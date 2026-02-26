@@ -10,6 +10,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -119,15 +120,23 @@ export default function BudgetScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
-          <Text style={styles.screenTitle}>Presupuesto</Text>
+          <View style={styles.headerLeft}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.screenTitle}>Presupuesto</Text>
+          </View>
           {isAdmin ? (
-            <ActionButton title="Salir Admin" onPress={logout} variant="danger" />
+            <ActionButton title="Salir Admin" onPress={logout} variant="danger" compact />
           ) : (
             <ActionButton
               title="Admin"
               onPress={() => setShowPinModal(true)}
               variant="secondary"
-              icon={<Ionicons name="lock-closed" size={20} color={COLORS.accent} />}
+              icon={<Ionicons name="lock-closed" size={16} color={COLORS.accent} />}
+              compact
             />
           )}
         </View>
@@ -275,14 +284,21 @@ export default function BudgetScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: SPACING.md + insets.top }]}>
-        <View>
-          <Text style={styles.screenTitle}>Presupuesto</Text>
-          <Text style={styles.orderRef}>OT #{currentOrder.id}</Text>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <View>
+            <Text style={styles.screenTitle}>Presupuesto</Text>
+            <Text style={styles.orderRef}>OT #{currentOrder.id}</Text>
+          </View>
         </View>
         <View style={styles.headerButtons}>
           {isAdmin ? (
             <View style={styles.adminBadge}>
-              <Ionicons name="shield-checkmark" size={16} color={COLORS.white} />
+              <Ionicons name="shield-checkmark" size={14} color={COLORS.white} />
               <Text style={styles.adminBadgeText}>Admin</Text>
             </View>
           ) : (
@@ -290,11 +306,12 @@ export default function BudgetScreen() {
               title="Admin"
               onPress={() => setShowPinModal(true)}
               variant="secondary"
-              icon={<Ionicons name="lock-closed" size={18} color={COLORS.accent} />}
+              icon={<Ionicons name="lock-closed" size={16} color={COLORS.accent} />}
+              compact
             />
           )}
           <TouchableOpacity onPress={() => setCurrentOrder(null)} style={styles.closeBtn}>
-            <Ionicons name="close-circle" size={32} color={COLORS.white} />
+            <Ionicons name="close-circle" size={26} color={COLORS.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -571,6 +588,17 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     backgroundColor: COLORS.primary,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
   screenTitle: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '800',
@@ -590,8 +618,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.xs,
     backgroundColor: COLORS.success,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.round,
   },
   adminBadgeText: {

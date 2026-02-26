@@ -16,6 +16,7 @@ interface ActionButtonProps {
   loading?: boolean;
   style?: ViewStyle;
   icon?: React.ReactNode;
+  compact?: boolean;
 }
 
 export function ActionButton({
@@ -26,6 +27,7 @@ export function ActionButton({
   loading = false,
   style,
   icon,
+  compact = false,
 }: ActionButtonProps) {
   const bgColors = {
     primary: COLORS.accent,
@@ -45,6 +47,7 @@ export function ActionButton({
     <TouchableOpacity
       style={[
         styles.button,
+        compact && styles.compactButton,
         { backgroundColor: bgColors[variant] },
         variant === 'secondary' && styles.secondaryBorder,
         disabled && styles.disabled,
@@ -59,7 +62,7 @@ export function ActionButton({
       ) : (
         <>
           {icon}
-          <Text style={[styles.text, { color: textColors[variant] }]}>{title}</Text>
+          <Text style={[styles.text, compact && styles.compactText, { color: textColors[variant] }]}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -77,6 +80,13 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     gap: SPACING.sm,
   },
+  compactButton: {
+    minHeight: 36,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+    gap: SPACING.xs,
+  },
   secondaryBorder: {
     borderWidth: 2,
     borderColor: COLORS.accent,
@@ -87,5 +97,8 @@ const styles = StyleSheet.create({
   text: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
+  },
+  compactText: {
+    fontSize: FONT_SIZES.sm,
   },
 });

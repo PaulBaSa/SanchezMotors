@@ -10,6 +10,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   StyleSheet,
   Alert,
@@ -193,6 +194,7 @@ export default function ReceptionScreen() {
               title={currentOrder ? "Ir atrás" : "Cancelar"}
               onPress={handleCancel}
               variant="secondary"
+              compact
             />
           </View>
 
@@ -334,12 +336,20 @@ export default function ReceptionScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.listHeader, { paddingTop: SPACING.md + insets.top }]}>
-        <Text style={styles.screenTitle}>Recepción</Text>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.screenTitle}>Recepción</Text>
+        </View>
         <ActionButton
           title="Nueva OT"
           onPress={handleNewOrder}
           variant="primary"
-          icon={<Ionicons name="add-circle" size={24} color={COLORS.white} />}
+          icon={<Ionicons name="add-circle" size={18} color={COLORS.white} />}
+          compact
         />
       </View>
 
@@ -384,6 +394,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     backgroundColor: COLORS.primary,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
   },
   screenTitle: {
     fontSize: FONT_SIZES.xxl,
