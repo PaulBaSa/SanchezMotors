@@ -16,6 +16,7 @@ import {
   TextInput,
   Alert,
   Linking,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +43,18 @@ export default function BudgetScreen() {
     realCost: string;
     laborRealCost: string;
   } | null>(null);
+
+  // Sanitize numeric input: only digits and a single decimal point
+  const sanitizeAmount = (text: string): string => {
+    // Remove everything except digits and decimal point
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    // Keep only the first decimal point
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      return parts[0] + '.' + parts.slice(1).join('');
+    }
+    return cleaned;
+  };
 
   // Calculate budget summary — must be before any conditional returns (React Rules of Hooks)
   const summary: BudgetSummary = useMemo(() => {
@@ -82,6 +95,7 @@ export default function BudgetScreen() {
     if (!editingValues || !editingCosts || !currentOrder) return;
     const task = currentOrder.tasks.find((t) => t.id === editingCosts);
     if (!task) return;
+    Keyboard.dismiss();
     const updated: WorkTask = {
       ...task,
       saleCost: parseFloat(editingValues.saleCost) || 0,
@@ -93,6 +107,12 @@ export default function BudgetScreen() {
     setEditingCosts(null);
     setEditingValues(null);
   }, [editingValues, editingCosts, currentOrder, handleUpdateTaskCosts]);
+
+  const handleCancelEditing = useCallback(() => {
+    Keyboard.dismiss();
+    setEditingCosts(null);
+    setEditingValues(null);
+  }, []);
 
   // If no order selected, show order picker
   if (!currentOrder) {
@@ -327,11 +347,14 @@ export default function BudgetScreen() {
                     style={styles.priceInput}
                     value={editingValues?.saleCost ?? ''}
                     onChangeText={(text) =>
-                      setEditingValues((prev) => prev ? { ...prev, saleCost: text } : null)
+                      setEditingValues((prev) => prev ? { ...prev, saleCost: sanitizeAmount(text) } : null)
                     }
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={COLORS.textLight}
+                    selectTextOnFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveEditingCosts}
                   />
                 ) : (
                   <Text style={styles.priceValue}>{formatCurrency(task.saleCost)}</Text>
@@ -345,11 +368,14 @@ export default function BudgetScreen() {
                     style={styles.priceInput}
                     value={editingValues?.laborSaleCost ?? ''}
                     onChangeText={(text) =>
-                      setEditingValues((prev) => prev ? { ...prev, laborSaleCost: text } : null)
+                      setEditingValues((prev) => prev ? { ...prev, laborSaleCost: sanitizeAmount(text) } : null)
                     }
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={COLORS.textLight}
+                    selectTextOnFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveEditingCosts}
                   />
                 ) : (
                   <Text style={styles.priceValue}>{formatCurrency(task.laborSaleCost)}</Text>
@@ -370,11 +396,14 @@ export default function BudgetScreen() {
                       style={[styles.priceInput, styles.adminInput]}
                       value={editingValues?.realCost ?? ''}
                       onChangeText={(text) =>
-                        setEditingValues((prev) => prev ? { ...prev, realCost: text } : null)
+                        setEditingValues((prev) => prev ? { ...prev, realCost: sanitizeAmount(text) } : null)
                       }
                       keyboardType="decimal-pad"
                       placeholder="0.00"
                       placeholderTextColor={COLORS.textLight}
+                      selectTextOnFocus
+                      returnKeyType="done"
+                      onSubmitEditing={handleSaveEditingCosts}
                     />
                   </View>
 
@@ -384,11 +413,14 @@ export default function BudgetScreen() {
                       style={[styles.priceInput, styles.adminInput]}
                       value={editingValues?.laborRealCost ?? ''}
                       onChangeText={(text) =>
-                        setEditingValues((prev) => prev ? { ...prev, laborRealCost: text } : null)
+                        setEditingValues((prev) => prev ? { ...prev, laborRealCost: sanitizeAmount(text) } : null)
                       }
                       keyboardType="decimal-pad"
                       placeholder="0.00"
                       placeholderTextColor={COLORS.textLight}
+                      selectTextOnFocus
+                      returnKeyType="done"
+                      onSubmitEditing={handleSaveEditingCosts}
                     />
                   </View>
 
@@ -420,18 +452,29 @@ export default function BudgetScreen() {
                 </View>
               )}
 
-              {/* Save button shown while editing */}
+              {/* Save / Cancel buttons shown while editing */}
               {editingCosts === task.id && (
-                <TouchableOpacity style={styles.saveButton} onPress={handleSaveEditingCosts} activeOpacity={0.8}>
-                  <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
-                  <Text style={styles.saveButtonText}>Guardar</Text>
-                </TouchableOpacity>
+                <View style={styles.editActions}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEditing} activeOpacity={0.8}>
+                    <Ionicons name="close-circle-outline" size={20} color={COLORS.textSecondary} />
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.saveButton} onPress={handleSaveEditingCosts} activeOpacity={0.8}>
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
+                    <Text style={styles.saveButtonText}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               <View style={styles.lineSubtotal}>
                 <Text style={styles.subtotalLabel}>Subtotal</Text>
                 <Text style={styles.subtotalValue}>
-                  {formatCurrency(task.saleCost + task.laborSaleCost)}
+                  {editingCosts === task.id
+                    ? formatCurrency(
+                        (parseFloat(editingValues?.saleCost ?? '') || 0) +
+                        (parseFloat(editingValues?.laborSaleCost ?? '') || 0)
+                      )
+                    : formatCurrency(task.saleCost + task.laborSaleCost)}
                 </Text>
               </View>
             </View>
@@ -639,7 +682,31 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     minHeight: 44,
   },
+  editActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  cancelButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm,
+    minHeight: TOUCH_TARGET.minHeight,
+  },
+  cancelButtonText: {
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    fontSize: FONT_SIZES.md,
+  },
   saveButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -647,7 +714,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.success,
     borderRadius: BORDER_RADIUS.md,
     paddingVertical: SPACING.sm,
-    marginTop: SPACING.sm,
     minHeight: TOUCH_TARGET.minHeight,
   },
   saveButtonText: {
